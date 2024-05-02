@@ -48,7 +48,7 @@ async function run() {
     const verifyToken = (req, res, next) => {
       console.log('inside verify token', req.headers.authorization);
       if (!req.headers.authorization) {
-        return res.status(401).send({ message: 'Forbidden access' });
+        return res.status(401).send({ message: 'unauthorzied access' });
       }
       const token = req.headers.authorization.split(' ')[1];
       jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
@@ -62,14 +62,47 @@ async function run() {
      
      }
 
+    // use verify admin after verify token
+
+    const verifyAdmin = async(req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await userCollention.findOne(query);
+      const isAdmin = user?.role === 'admin';
+      if (!isAdmin) { 
+        return res.status(403).send({ message: 'forbidden access' });
+      }
+      next();
+     }
 
 
 
-    app.get("/users", verifyToken, async (req, res) => {
+    app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
       
       const result = await userCollention.find().toArray();
       res.send(result);
     })
+
+    //  admin api call
+    app.get("/users/admin/:email", verifyToken,verifyAdmin, async (req, res) => {
+      const email = req.params.email;
+      if (email !== req.decoded.email) {
+        return res.status(401).send({ message: 'unauthorized access' });
+      }
+      const query = { email: email };
+      const user = await userCollention.findOne(query);
+      let admin = false;
+      if (user) {
+        admin = user?.role === "admin";
+      }
+      res.send({admin});
+
+
+
+     })
+
+
+
 
     app.post("/users", async (req, res) => {
       const user = req.body;
@@ -103,7 +136,7 @@ async function run() {
 
 
     // delete user
-    app.delete("/users/:id", async (req, res) => { 
+    app.delete("/users/:id",verifyToken, verifyAdmin, async (req, res) => { 
       const id = req.params.id;
       const query = { _id: new ObjectId(id) }
       const result = await userCollention.deleteOne(query);
