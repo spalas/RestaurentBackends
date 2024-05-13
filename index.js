@@ -46,7 +46,7 @@ async function run() {
     //  middleware
     
     const verifyToken = (req, res, next) => {
-      console.log('inside verify token', req.headers.authorization);
+      // console.log('inside verify token', req.headers.authorization);
       if (!req.headers.authorization) {
         return res.status(401).send({ message: 'unauthorzied access' });
       }
@@ -119,7 +119,7 @@ async function run() {
     })
     
     // make admin
-    app.patch("/users/admin/:id", async (req, res) => { 
+    app.patch("/users/admin/:id",  verifyToken, verifyAdmin,  async (req, res) => { 
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const updatedDoc = {
@@ -144,10 +144,56 @@ async function run() {
     })
     
 
-      app.get('/menu', async (req, res) => {
+      app.get('/menu', verifyToken, verifyAdmin, async (req, res) => {
           const result = await menuCollention.find().toArray();
           res.send(result)
-       })
+      })
+    
+    //  menu posting request
+
+    app.post('/menu', verifyToken, verifyAdmin, async (req, res) => {
+      const item = req.body;
+      const result = await menuCollention.insertOne(item);
+      res.send(result)
+    })
+// updated menu posting
+
+    app.patch('/menu/:id', verifyToken, verifyAdmin,  async (req, res) => { 
+      const item = req.body;
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) }
+      const updatedDoc = {
+        $set: {
+          name: item.name,
+          category: item.category,
+          price: item.price,
+          recipe: item.recipe,
+          image: item.image
+        }
+      }
+      const result = await menuCollention.updateOne(filter, updatedDoc);
+      res.send(result);
+    })
+
+
+    // update menu item list
+    app.get("/menu/:id", verifyToken, verifyAdmin, async (req, res) => { 
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await menuCollention.findOne(query);
+      res.send(result);
+    })
+    
+    // delete menu item 
+
+    app.delete("/menu/:id",verifyToken, verifyAdmin, async (req, res) => { 
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await menuCollention.deleteOne(query);
+      res.send(result);
+    })
+      
+    
       app.get('/reviews', async (req, res) => {
           const result = await reviewsCollention.find().toArray();
           res.send(result)
