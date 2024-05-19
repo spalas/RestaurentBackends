@@ -2,7 +2,8 @@ const express = require('express');
 const app = express();
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-require('dotenv').config()
+require('dotenv').config();
+const stripe = require('stripe')(process.env.PAYMENT_METHOD_TEST_KEY)
 const port = process.env.PORT || 5000
 
 // middleware
@@ -84,10 +85,10 @@ async function run() {
     })
 
     //  admin api call
-    app.get("/users/admin/:email", verifyToken,verifyAdmin, async (req, res) => {
+    app.get("/users/admin/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
       if (email !== req.decoded.email) {
-        return res.status(401).send({ message: 'unauthorized access' });
+        return res.status(401).send({ message: 'forbidden access' });
       }
       const query = { email: email };
       const user = await userCollention.findOne(query);
@@ -117,6 +118,8 @@ async function run() {
       const result = await userCollention.insertOne(user);
       res.send(result);
     })
+
+
     
     // make admin
     app.patch("/users/admin/:id",  verifyToken, verifyAdmin,  async (req, res) => { 
@@ -144,7 +147,8 @@ async function run() {
     })
     
 
-      app.get('/menu', verifyToken, verifyAdmin, async (req, res) => {
+
+      app.get('/menu',  async (req, res) => {
           const result = await menuCollention.find().toArray();
           res.send(result)
       })
@@ -158,26 +162,27 @@ async function run() {
     })
 // updated menu posting
 
-    app.patch('/menu/:id', verifyToken, verifyAdmin,  async (req, res) => { 
-      const item = req.body;
-      const id = req.params.id;
-      const filter = { _id: new ObjectId(id) }
-      const updatedDoc = {
-        $set: {
-          name: item.name,
-          category: item.category,
-          price: item.price,
-          recipe: item.recipe,
-          image: item.image
-        }
-      }
-      const result = await menuCollention.updateOne(filter, updatedDoc);
-      res.send(result);
-    })
+app.patch('/menu/:id', verifyToken, verifyAdmin, async (req, res) => {
+  const item = req.body;
+  const id = req.params.id;
+  const filter = { _id: new ObjectId(id) }
+  const updatedDoc = {
+    $set: {
+      name: item.name,
+      category: item.category,
+      price: item.price,
+      recipe: item.recipe,
+      image: item.image
+    }
+  }
+
+  const result = await menuCollention.updateOne(filter, updatedDoc)
+  res.send(result);
+})
 
 
     // update menu item list
-    app.get("/menu/:id", verifyToken, verifyAdmin, async (req, res) => { 
+    app.get("/menu/:id", async (req, res) => { 
       const id = req.params.id;
       const query = { _id: new ObjectId(id) }
       const result = await menuCollention.findOne(query);
@@ -222,7 +227,42 @@ async function run() {
       const result = await cartsCollention.deleteOne(query);
       res.send(result);
 
-     })
+    })
+    
+
+
+    // payment intent
+    // app.post('/create-payment-intent', async (req, res) => {
+    //   const { price } = req.body;
+    //   const amount = parseInt(price * 100);
+    //   console.log(amount)
+    //   const paymentIntent = await stripe.createPaymentIntents.create({
+    //     amount: amount,
+    //     currency: 'usd',
+    //     payment_method_types: ['card']
+    //  })
+    //  res.send({
+    //   clientSecret: paymentIntent.client_secret,
+    // });
+    //  })
+
+    app.post('/create-payment-intent', async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100);
+      console.log(amount, 'amount inside the intent')
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: 'usd',
+        payment_method_types: ['card']
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_Secret
+      })
+    });
+
+
 
 
     // Send a ping to confirm a successful connection
