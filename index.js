@@ -3,9 +3,9 @@ const app = express();
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
-const stripe = require('stripe')(process.env.PAYMENT_METHOD_TEST_KEY)
+const stripe = require('stripe')(process.env.STRIPE_KEY)
 const port = process.env.PORT || 5000
-
+// console.log(stripe)
 // middleware
 app.use(cors())
 app.use(express.json());
@@ -87,9 +87,11 @@ async function run() {
     //  admin api call
     app.get("/users/admin/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
+
       if (email !== req.decoded.email) {
         return res.status(401).send({ message: 'forbidden access' });
       }
+
       const query = { email: email };
       const user = await userCollention.findOne(query);
       let admin = false;
@@ -148,7 +150,7 @@ async function run() {
     
 
 
-      app.get('/menu',  async (req, res) => {
+    app.get('/menu',  async (req, res) => {
           const result = await menuCollention.find().toArray();
           res.send(result)
       })
@@ -160,25 +162,8 @@ async function run() {
       const result = await menuCollention.insertOne(item);
       res.send(result)
     })
-// updated menu posting
 
-app.patch('/menu/:id', verifyToken, verifyAdmin, async (req, res) => {
-  const item = req.body;
-  const id = req.params.id;
-  const filter = { _id: new ObjectId(id) }
-  const updatedDoc = {
-    $set: {
-      name: item.name,
-      category: item.category,
-      price: item.price,
-      recipe: item.recipe,
-      image: item.image
-    }
-  }
 
-  const result = await menuCollention.updateOne(filter, updatedDoc)
-  res.send(result);
-})
 
 
     // update menu item list
@@ -188,6 +173,28 @@ app.patch('/menu/:id', verifyToken, verifyAdmin, async (req, res) => {
       const result = await menuCollention.findOne(query);
       res.send(result);
     })
+    
+    app.patch('/menu/:id', async (req, res) => {
+      const item = req.body;
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) }
+      const updatedDoc = {
+        $set: {
+          name: item.name,
+          category: item.category,
+          price: item.price,
+          recipe: item.recipe,
+          image: item.image
+        }
+      }
+    
+      const result = await menuCollention.updateOne(filter, updatedDoc)
+      res.send(result);
+    })
+
+
+
+
     
     // delete menu item 
 
@@ -258,8 +265,8 @@ app.patch('/menu/:id', verifyToken, verifyAdmin, async (req, res) => {
       });
 
       res.send({
-        clientSecret: paymentIntent.client_Secret
-      })
+        clientSecret: paymentIntent.client_secret,
+      });
     });
 
 
