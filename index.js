@@ -11,6 +11,7 @@ app.use(cors())
 app.use(express.json());
 
 
+
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@palash.fofcwzp.mongodb.net/?retryWrites=true&w=majority&appName=palash`;
 
@@ -33,6 +34,7 @@ async function run() {
     const menuCollention = client.db("restautandb").collection("menu");
     const reviewsCollention = client.db("restautandb").collection("reviews");
     const cartsCollention = client.db("restautandb").collection("carts");
+    const paymentCollention = client.db("restautandb").collection("payments");
      
     // jwt authorization
     app.post("/jwt", async (req, res) => {
@@ -268,6 +270,37 @@ async function run() {
         clientSecret: paymentIntent.client_secret,
       });
     });
+    // payment history 
+    app.get('/payments/:email', verifyToken, async (req, res) => { 
+      const query = { email: req.params.email }
+      if (req.params.email !== req.decoded.email) {
+        return res.status(403).send({message: "forbidden access",})
+      }
+      const result = await paymentCollention.find(query).toArray();
+      res.send(result);
+    })
+
+
+
+
+
+
+    app.post('/payments', async (req, res) => { 
+      const payment = req.body;
+      const paymentResult = await paymentCollention.insertOne(payment);
+      // carefully delete the payment item the cart
+      console.log('payment info', payment);
+      
+      const query = {
+        _id: {
+          $in: payment.cartIds.map(id => new ObjectId(id))
+        }
+      }
+      const deleteResult = await cartsCollention.deleteMany(query);
+
+      res.send({ paymentResult, deleteResult });
+     
+    })
 
 
 
