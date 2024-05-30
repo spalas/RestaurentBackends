@@ -3,7 +3,13 @@ const app = express();
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
-const stripe = require('stripe')(process.env.STRIPE_KEY)
+const stripe = require('stripe')(process.env.STRIPE_KEY);
+const formData = require('form-data');
+const Mailgun = require('mailgun.js');
+const mailgun = new Mailgun(formData);
+
+const mg = mailgun.client({username: 'api', key: process.env.MAILGUN_KEY_TEST_KEY });
+
 const port = process.env.PORT || 5000
 // console.log(stripe)
 // middleware
@@ -27,7 +33,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-      // await client.connect();
+      await client.connect();
       
       
     const userCollention = client.db("restautandb").collection("users");
@@ -298,6 +304,28 @@ async function run() {
       }
       const deleteResult = await cartsCollention.deleteMany(query);
 
+
+      // send suser email about payment confirmation
+      mg.messages.create(process.env.MAIL_SENDING_DOMIN, {
+        from: "todo need more information",
+        to: ["spalash521@gmail.com"],
+        subject: "Hello",
+        text: "Testing some Mailgun awesomeness!",
+        html: `
+        <div>
+        <h2>Thanks you for your order</h2>
+        <h4>Your transaction Id: <strong>${payment.transactionId}</strong>
+        </h4>
+        <p>Thanks for your feedback about the food </p>
+        </div>
+        `
+      })
+      .then(msg => console.log(msg)) // logs response data
+      .catch(err => console.log(err)); // logs any error
+
+
+
+
       res.send({ paymentResult, deleteResult });
      
     })
@@ -377,8 +405,8 @@ async function run() {
 
 
     // Send a ping to confirm a successful connection
-    // await client.db("admin").command({ ping: 1 });
-    // console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    await client.db("admin").command({ ping: 1 });
+    console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
